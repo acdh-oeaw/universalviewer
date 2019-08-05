@@ -70,15 +70,15 @@
         "elideCount": 40,
         "expandFullEnabled": true,
         "galleryThumbChunkedResizingThreshold": 400,
-        "galleryThumbHeight": 320,
+        "galleryThumbHeight": 250,
         "galleryThumbLoadPadding": 3,
-        "galleryThumbWidth": 200,
-        "oneColThumbHeight": 320,
-        "oneColThumbWidth": 200,
+        "galleryThumbWidth": 500,
+        "oneColThumbHeight": 250,
+        "oneColThumbWidth": 500,
         "pageModeEnabled": true,
         "panelAnimationDuration": 250,
         "panelCollapsedWidth": 30,
-        "panelExpandedWidth": 255,
+        "panelExpandedWidth": 500,
         "panelOpen": true,
         "tabOrder": "",
         "thumbsCacheInvalidation": {
@@ -90,8 +90,8 @@
         "thumbsImageFadeInDuration": 300,
         "thumbsLoadRange": 15,
         "treeEnabled": true,
-        "twoColThumbHeight": 150,
-        "twoColThumbWidth": 90
+        "twoColThumbHeight": 125,
+        "twoColThumbWidth": 250
       }
     },
     "dialogue": {

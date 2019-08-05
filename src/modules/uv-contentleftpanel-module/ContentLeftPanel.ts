@@ -438,7 +438,7 @@ export class ContentLeftPanel extends LeftPanel {
             content: this.config.content,
             debug: false,
             imageFadeInDuration: 300,
-            initialZoom: 6,
+            initialZoom: 8,
             minLabelWidth: 20,
             pageModeEnabled: this.isPageModeEnabled(),
             scrollStopDuration: 100,
