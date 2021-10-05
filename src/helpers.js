@@ -38,6 +38,12 @@ function createUV(selector, data, dataProvider) {
        resize();
     }, false);
 
+    uv.on('pause', function(currentTime) {
+        if (currentTime > 0) {
+            dataProvider.set('t', currentTime);
+        }
+    }, false);
+
     uv.on('collectionIndexChanged', function(collectionIndex) {
         dataProvider.set('c', collectionIndex);
     }, false);
@@ -68,6 +74,10 @@ function createUV(selector, data, dataProvider) {
 
     uv.on('openseadragonExtension.currentViewUri', function(data) {
         //console.log('openseadragonExtension.currentViewUri', obj);
+    }, false);
+
+    uv.on('ebookExtension.cfiFragmentChanged', function(cfi) {
+        dataProvider.set('cfi', cfi);
     }, false);
 
     uv.on('reload', function(data) {
@@ -124,6 +134,7 @@ function createUV(selector, data, dataProvider) {
         e.type === 'mozfullscreenchange' && !document.mozFullScreen ||
         e.type === 'MSFullscreenChange' && document.msFullscreenElement === null) {
             uv.exitFullScreen();
+            resize();
         }
     });
 

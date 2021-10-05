@@ -3,6 +3,7 @@ var theme = require('./tasks/theme');
 var c = require('./config');
 var config = new c();
 var avExtensionConfig = require('./src/extensions/uv-av-extension/config');
+var ebookExtensionConfig = require('./src/extensions/uv-ebook-extension/config');
 var mediaelementExtensionConfig = require('./src/extensions/uv-mediaelement-extension/config');
 var pdfExtensionConfig = require('./src/extensions/uv-pdf-extension/config');
 var seadragonExtensionConfig = require('./src/extensions/uv-seadragon-extension/config');
@@ -33,7 +34,7 @@ module.exports = function (grunt) {
             libs: [
                 config.directories.src + '/extensions/*/lib/**/*',
                 '!' + config.directories.src + '/extensions/*/lib/**/*.proxy.js'
-            ]           
+            ]
         },
 
         copy: {
@@ -212,6 +213,7 @@ module.exports = function (grunt) {
             npmComponents: {
                 files: [
                     avExtensionConfig.sync.dependencies,
+                    ebookExtensionConfig.sync.dependencies,
                     mediaelementExtensionConfig.sync.dependencies,
                     pdfExtensionConfig.sync.dependencies,
                     seadragonExtensionConfig.sync.dependencies,
@@ -253,8 +255,14 @@ module.exports = function (grunt) {
                 cmd: 'node node_modules/requirejs/bin/r.js -o dev.build.js optimize=none'
             },
             distbuild: {
-                cmd: 'node node_modules/requirejs/bin/r.js -o dist.build.js'
+                cmd: 'node node_modules/requirejs/bin/r.js -o dist.build.js optimize=none'
             },
+            terser: {
+                cmd: 'node node_modules/terser/bin/terser --compress --output src/build.js src/build.js'
+            },
+            noop: {
+                cmd: 'echo'
+            }
         },
 
         replace: {
@@ -315,20 +323,12 @@ module.exports = function (grunt) {
             },
             dist: {
             }
-        },
-
-        uglify: {
-            options: {
-                mangle: false
-            }
         }
     });
 
     grunt.loadNpmTasks("grunt-contrib-clean");
-    grunt.loadNpmTasks("grunt-contrib-compress");
     grunt.loadNpmTasks("grunt-contrib-concat");
     grunt.loadNpmTasks("grunt-contrib-copy");
-    grunt.loadNpmTasks("grunt-contrib-uglify");
     grunt.loadNpmTasks("grunt-exec");
     grunt.loadNpmTasks("grunt-ts");
     grunt.loadNpmTasks('grunt-contrib-connect');
@@ -342,8 +342,9 @@ module.exports = function (grunt) {
 
     grunt.registerTask('build', '', function() {
 
-        var tsType = (grunt.option('dist')) ? 'ts:dist' : 'ts:dev';
-        var execType = (grunt.option('dist')) ? 'exec:distbuild' : 'exec:devbuild';
+        var tsBuild = (grunt.option('dist')) ? 'ts:dist' : 'ts:dev';
+        var rjsBuild = (grunt.option('dist')) ? 'exec:distbuild' : 'exec:devbuild';
+        var terser = (grunt.option('dist')) ? 'exec:terser' : 'exec:noop';
 
         grunt.task.run(
             'clean:libs',
@@ -351,12 +352,13 @@ module.exports = function (grunt) {
             'sync',
             'copy:bundle',
             'concat:offline',
-            tsType,
+            tsBuild,
             'clean:extension',
             'configure:apply',
             'clean:build',
             'copy:schema',
-            execType,
+            rjsBuild,
+            terser,
             'copy:build',
             'theme:create',
             'theme:dist',
@@ -364,8 +366,7 @@ module.exports = function (grunt) {
             'replace:themeassets',
             'clean:dist',
             'clean:examples',
-            'copy:dist',
-            'compress:zip'
+            'copy:dist'
         );
     });
 
