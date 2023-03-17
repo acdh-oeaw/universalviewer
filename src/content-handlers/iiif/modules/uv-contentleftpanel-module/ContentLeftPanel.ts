@@ -457,7 +457,7 @@ export class ContentLeftPanel extends LeftPanel {
     // }
 
     const thumbs: Thumb[] = <Thumb[]>(
-      this.extension.helper.getThumbs(90)
+      this.extension.helper.getThumbs(210)
       // this.extension.helper.getThumbs(width, height)
     );
 
