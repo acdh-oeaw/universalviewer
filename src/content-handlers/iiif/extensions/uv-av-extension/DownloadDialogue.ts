@@ -21,27 +21,26 @@ export class DownloadDialogue extends BaseDownloadDialogue {
   }
 
   create(): void {
-
     this.setConfig("downloadDialogue");
 
     super.create();
 
     this.$entireFileAsOriginal = $(
       '<li class="option single"><input id="' +
-      DownloadOption.ENTIRE_FILE_AS_ORIGINAL +
-      '" type="radio" name="downloadOptions" tabindex="0" /><label id="' +
-      DownloadOption.ENTIRE_FILE_AS_ORIGINAL +
-      'label" for="' +
-      DownloadOption.ENTIRE_FILE_AS_ORIGINAL +
-      '"></label></li>'
+        DownloadOption.ENTIRE_FILE_AS_ORIGINAL +
+        '" type="radio" name="downloadOptions" tabindex="0" /><label id="' +
+        DownloadOption.ENTIRE_FILE_AS_ORIGINAL +
+        'label" for="' +
+        DownloadOption.ENTIRE_FILE_AS_ORIGINAL +
+        '"></label></li>'
     );
     this.$downloadOptions.append(this.$entireFileAsOriginal);
     this.$entireFileAsOriginal.hide();
 
     this.$downloadButton = $(
       '<a class="btn btn-primary" href="#" tabindex="0">' +
-      this.content.download +
-      "</a>"
+        this.content.download +
+        "</a>"
     );
     this.$buttons.prepend(this.$downloadButton);
     this.$imageOptionsContainer = $('<li class="group image"></li>');
@@ -89,7 +88,6 @@ export class DownloadDialogue extends BaseDownloadDialogue {
   }
 
   open(triggerButton: HTMLElement) {
-
     super.open(triggerButton);
 
     const canvas: Canvas = this.extension.helper.getCurrentCanvas();
@@ -112,16 +110,18 @@ export class DownloadDialogue extends BaseDownloadDialogue {
 
     if (this.isDownloadOptionAvailable(DownloadOption.RANGE_RENDERINGS)) {
       if (canvas.ranges && canvas.ranges.length) {
-        const currentRange: Range | null = this.extension.helper.getCurrentRange();
+        const currentRange: Range | null =
+          this.extension.helper.getCurrentRange();
 
         if (currentRange) {
           this.$downloadOptions.append(this.$canvasOptionsContainer);
 
-          const renderingOptions: IRenderingOption[] = this.getDownloadOptionsForRenderings(
-            currentRange,
-            this.content.entireFileAsOriginal,
-            DownloadOption.CANVAS_RENDERINGS
-          );
+          const renderingOptions: IRenderingOption[] =
+            this.getDownloadOptionsForRenderings(
+              currentRange,
+              this.content.entireFileAsOriginal,
+              DownloadOption.CANVAS_RENDERINGS
+            );
           this.addDownloadOptionsForRenderings(renderingOptions);
         }
 
@@ -145,21 +145,23 @@ export class DownloadDialogue extends BaseDownloadDialogue {
         this.$downloadOptions.append(this.$imageOptionsContainer);
       }
       for (let i = 0; i < images.length; i++) {
-        const renderingOptions: IRenderingOption[] = this.getDownloadOptionsForRenderings(
-          images[i].getResource(),
-          this.content.entireFileAsOriginal,
-          DownloadOption.IMAGE_RENDERINGS
-        );
+        const renderingOptions: IRenderingOption[] =
+          this.getDownloadOptionsForRenderings(
+            images[i].getResource(),
+            this.content.entireFileAsOriginal,
+            DownloadOption.IMAGE_RENDERINGS
+          );
         this.addDownloadOptionsForRenderings(renderingOptions);
       }
     }
 
     if (this.isDownloadOptionAvailable(DownloadOption.CANVAS_RENDERINGS)) {
-      const renderingOptions: IRenderingOption[] = this.getDownloadOptionsForRenderings(
-        canvas,
-        this.content.entireFileAsOriginal,
-        DownloadOption.CANVAS_RENDERINGS
-      );
+      const renderingOptions: IRenderingOption[] =
+        this.getDownloadOptionsForRenderings(
+          canvas,
+          this.content.entireFileAsOriginal,
+          DownloadOption.CANVAS_RENDERINGS
+        );
       if (renderingOptions.length) {
         this.$downloadOptions.append(this.$canvasOptionsContainer);
         this.addDownloadOptionsForRenderings(renderingOptions);
@@ -167,11 +169,12 @@ export class DownloadDialogue extends BaseDownloadDialogue {
     }
 
     if (this.isDownloadOptionAvailable(DownloadOption.MANIFEST_RENDERINGS)) {
-      let renderingOptions: IRenderingOption[] = this.getDownloadOptionsForRenderings(
-        this.extension.helper.getCurrentSequence(),
-        this.content.entireDocument,
-        DownloadOption.MANIFEST_RENDERINGS
-      );
+      let renderingOptions: IRenderingOption[] =
+        this.getDownloadOptionsForRenderings(
+          this.extension.helper.getCurrentSequence(),
+          this.content.entireDocument,
+          DownloadOption.MANIFEST_RENDERINGS
+        );
 
       if (!renderingOptions.length && this.extension.helper.manifest) {
         renderingOptions = this.getDownloadOptionsForRenderings(

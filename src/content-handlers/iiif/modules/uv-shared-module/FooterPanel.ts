@@ -3,8 +3,11 @@ import { IIIFEvents } from "../../IIIFEvents";
 import { BaseView } from "./BaseView";
 import { Bools, Documents } from "@edsilv/utils";
 import { Events } from "../../../../Events";
+import { BaseConfig } from "../../BaseConfig";
 
-export class FooterPanel extends BaseView {
+export class FooterPanel<
+  T extends BaseConfig["modules"]["footerPanel"]
+> extends BaseView<T> {
   $feedbackButton: JQuery;
   $bookmarkButton: JQuery;
   $downloadButton: JQuery;
@@ -177,16 +180,13 @@ export class FooterPanel extends BaseView {
 
   updateMinimisedButtons(): void {
     // if configured to always minimise buttons
-    if (Bools.getBool(this.options.minimiseButtons, false)) {
-      this.$options.addClass("minimiseButtons");
-      return;
-    }
-
-    // otherwise, check metric
-    if (!this.extension.isDesktopMetric()) {
-      this.$options.addClass("minimiseButtons");
+    if (
+      Bools.getBool(this.options.minimiseButtons, false) ||
+      !this.extension.isDesktopMetric()
+    ) {
+      this.$options.find("span").addClass("sr-only");
     } else {
-      this.$options.removeClass("minimiseButtons");
+      this.$options.find("span").removeClass("sr-only");
     }
   }
 

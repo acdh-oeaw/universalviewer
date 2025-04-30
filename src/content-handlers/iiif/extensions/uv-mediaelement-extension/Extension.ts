@@ -26,10 +26,11 @@ import {
 } from "manifesto.js";
 import { TFragment } from "../../modules/uv-shared-module/TFragment";
 import "./theme/theme.less";
-import defaultConfig from "./config/en-GB.json";
+import defaultConfig from "./config/config.json";
 import { Events } from "../../../../Events";
+import { Config } from "./config/Config";
 
-export default class Extension extends BaseExtension
+export default class Extension extends BaseExtension<Config>
   implements IMediaElementExtension {
   $downloadDialogue: JQuery;
   $shareDialogue: JQuery;
@@ -38,20 +39,13 @@ export default class Extension extends BaseExtension
   centerPanel: MediaElementCenterPanel;
   downloadDialogue: DownloadDialogue;
   shareDialogue: ShareDialogue;
-  footerPanel: FooterPanel;
-  headerPanel: HeaderPanel;
+  footerPanel: FooterPanel<Config["modules"]["footerPanel"]>;
+  headerPanel: HeaderPanel<Config["modules"]["headerPanel"]>;
   helpDialogue: HelpDialogue;
   leftPanel: ResourcesLeftPanel;
   rightPanel: MoreInfoRightPanel;
   settingsDialogue: SettingsDialogue;
-  defaultConfig: any = defaultConfig;
-  locales = {
-    "en-GB": defaultConfig,
-    "cy-GB": () => import("./config/cy-GB.json"),
-    "fr-FR": () => import("./config/fr-FR.json"),
-    "pl-PL": () => import("./config/pl-PL.json"),
-    "sv-SE": () => import("./config/sv-SE.json"),
-  };
+  defaultConfig: Config = defaultConfig;
 
   create(): void {
     super.create();
@@ -185,6 +179,7 @@ export default class Extension extends BaseExtension
     super.render();
 
     this.checkForTarget();
+    this.checkForMuted();
   }
 
   checkForTarget(): void {
@@ -209,9 +204,13 @@ export default class Extension extends BaseExtension
     }
   }
 
+  checkForMuted(): void {
+    this.extensionHost.publish(IIIFEvents.SET_MUTED, this.data.muted || false);
+  }
+
   isLeftPanelEnabled(): boolean {
     return (
-      Bools.getBool(this.data.config.options.leftPanelEnabled, true) &&
+      Bools.getBool(this.data.config!.options.leftPanelEnabled, true) &&
       (this.helper.isMultiCanvas() ||
         this.helper.isMultiSequence() ||
         this.helper.hasResources())
@@ -241,26 +240,45 @@ export default class Extension extends BaseExtension
 
   getEmbedScript(template: string, width: number, height: number): string {
     const appUri: string = this.getAppUri();
+    const title: string = this.helper.getLabel() || "";
     const iframeSrc: string = `${appUri}#?manifest=${this.helper.manifestUri}&c=${this.helper.collectionIndex}&m=${this.helper.manifestIndex}&cv=${this.helper.canvasIndex}`;
     const script: string = Strings.format(
       template,
       iframeSrc,
       width.toString(),
-      height.toString()
+      height.toString(),
+      title
     );
     return script;
   }
 
-  // todo: use canvas.getThumbnail()
-  getPosterImageUri(): string {
-    const canvas: Canvas = this.helper.getCurrentCanvas();
-    const annotations: Annotation[] = canvas.getContent();
+  getPosterImageUri(): string | null {
+    let posterUri: string | null = null;
 
-    if (annotations && annotations.length) {
-      return annotations[0].getProperty("thumbnail");
+    const canvas: Canvas = this.helper.getCurrentCanvas();
+
+    // if there's an accompanying canvas, use that.
+    const accompanyingCanvas: any = canvas.getProperty("accompanyingCanvas");
+
+    if (accompanyingCanvas) {
+      if (accompanyingCanvas.items && accompanyingCanvas.items.length) {
+        const annotationPage: any = accompanyingCanvas.items[0];
+        if (annotationPage.items && annotationPage.items.length) {
+          const annotation: any = annotationPage.items[0];
+          posterUri = annotation.body?.id;
+        }
+      }
     } else {
-      return canvas.getProperty("thumbnail");
+      const annotations: Annotation[] = canvas.getContent();
+
+      if (annotations && annotations.length) {
+        posterUri = annotations[0].getProperty("thumbnail");
+      } else {
+        posterUri = canvas.getProperty("thumbnail");
+      }
     }
+
+    return posterUri;
   }
 
   isVideoFormat(type: string): boolean {

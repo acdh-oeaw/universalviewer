@@ -8,6 +8,7 @@ export const sanitize = (html: string) => {
       a: ["href", "title", "target", "class", "data-uv-navigate"],
       b: [],
       br: [],
+      em: [],
       i: [],
       img: ["src", "alt"],
       p: [],
@@ -28,7 +29,7 @@ export const isValidUrl = (value: string): boolean => {
 
 export const debounce = (callback: (args: any) => void, wait: number) => {
   let timeout;
-  return function(...args) {
+  return function (...args) {
     const context = this;
     clearTimeout(timeout);
     timeout = setTimeout(() => callback.apply(context, args), wait);
@@ -36,8 +37,8 @@ export const debounce = (callback: (args: any) => void, wait: number) => {
 };
 
 export const propertiesChanged = (
-  newData: IUVData,
-  currentData: IUVData,
+  newData: IUVData<any>,
+  currentData: IUVData<any>,
   properties: string[]
 ): boolean => {
   let propChanged: boolean = false;
@@ -53,8 +54,8 @@ export const propertiesChanged = (
 };
 
 export const propertyChanged = (
-  newData: IUVData,
-  currentData: IUVData,
+  newData: IUVData<any>,
+  currentData: IUVData<any>,
   propertyName: string
 ): boolean => {
   return currentData[propertyName] !== newData[propertyName];

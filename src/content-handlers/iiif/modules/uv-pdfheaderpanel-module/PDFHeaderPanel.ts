@@ -1,10 +1,13 @@
 const $ = require("jquery");
 import { IIIFEvents } from "../../IIIFEvents";
 import { PDFExtensionEvents } from "../../extensions/uv-pdf-extension/Events";
+import { Config } from "../../extensions/uv-pdf-extension/config/Config";
 import { HeaderPanel } from "../uv-shared-module/HeaderPanel";
 import { Strings } from "@edsilv/utils";
 
-export class PDFHeaderPanel extends HeaderPanel {
+export class PDFHeaderPanel extends HeaderPanel<
+  Config["modules"]["pdfHeaderPanel"]
+> {
   $firstButton: JQuery;
   $lastButton: JQuery;
   $nextButton: JQuery;
@@ -83,7 +86,9 @@ export class PDFHeaderPanel extends HeaderPanel {
     this.$search.append(this.$total);
 
     this.$searchButton = $(
-      '<a class="go btn btn-primary" tabindex="0">' + this.content.go + "</a>"
+      '<button class="go btn btn-primary" tabindex="0">' +
+        this.content.go +
+        "</button>"
     );
     this.$search.append(this.$searchButton);
     this.$searchButton.disable();
@@ -131,11 +136,11 @@ export class PDFHeaderPanel extends HeaderPanel {
       this.search(this.$searchText.val());
     });
 
-    this.$searchText.click(function() {
+    this.$searchText.click(function () {
       $(this).select();
     });
 
-    this.$searchButton.onPressed(() => {
+    this.onAccessibleClick(this.$searchButton, () => {
       this.search(this.$searchText.val());
     });
   }
@@ -157,18 +162,26 @@ export class PDFHeaderPanel extends HeaderPanel {
 
     if (this._pageIndex === 1) {
       this.$firstButton.disable();
+      this.$firstButton.attr("disabled", "disabled");
       this.$prevButton.disable();
+      this.$prevButton.attr("disabled", "disabled");
     } else {
       this.$firstButton.enable();
+      this.$firstButton.removeAttr("disabled");
       this.$prevButton.enable();
+      this.$prevButton.removeAttr("disabled");
     }
 
     if (this._pageIndex === this._pdfDoc.numPages) {
       this.$lastButton.disable();
+      this.$lastButton.attr("disabled", "disabled");
       this.$nextButton.disable();
+      this.$nextButton.attr("disabled", "disabled");
     } else {
       this.$lastButton.enable();
+      this.$lastButton.removeAttr("disabled");
       this.$nextButton.enable();
+      this.$nextButton.removeAttr("disabled");
     }
   }
 
@@ -182,7 +195,8 @@ export class PDFHeaderPanel extends HeaderPanel {
 
     if (isNaN(index)) {
       this.extension.showMessage(
-        this.extension.data.config.modules.genericDialogue.content.invalidNumber
+        this.extension.data.config!.modules.genericDialogue.content
+          .invalidNumber
       );
       return;
     }

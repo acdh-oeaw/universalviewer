@@ -3,8 +3,11 @@ import { IIIFEvents } from "../../IIIFEvents";
 import { Dialogue } from "../uv-shared-module/Dialogue";
 import { sanitize } from "../../../../Utils";
 import { Service } from "manifesto.js";
+import { BaseConfig } from "../../BaseConfig";
 
-export class AuthDialogue extends Dialogue {
+export class AuthDialogue extends Dialogue<
+  BaseConfig["modules"]["authDialogue"]
+> {
   closeCallback: any;
   confirmCallback: any;
   cancelCallback: any;
@@ -98,7 +101,7 @@ export class AuthDialogue extends Dialogue {
       this.$message.html(sanitize(description));
       this.$message.targetBlank();
 
-      this.$message.find("a").on("click", function() {
+      this.$message.find("a").on("click", function () {
         const url: string = $(this).attr("href");
         this.extensionHost.publish(IIIFEvents.EXTERNAL_LINK_CLICKED, url);
       });
@@ -119,7 +122,7 @@ export class AuthDialogue extends Dialogue {
     var buttonsToAdd =
       '<a class="confirm btn btn-primary" href="#" target="_parent"></a>';
     // If the top button is enabled, add an additional close button for consistency.
-    if (this.config.topCloseButtonEnabled) {
+    if (this.options.topCloseButtonEnabled) {
       buttonsToAdd += '<button class="close btn btn-default"></button>';
     }
     return buttonsToAdd;

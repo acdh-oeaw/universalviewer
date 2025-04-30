@@ -9,7 +9,6 @@ import { ISharePreview } from "./ISharePreview";
 import { IIIFExtensionHost } from "../../IIIFExtensionHost";
 import { IUVData } from "@/IUVData";
 import { LoginDialogue } from "../uv-dialogues-module/LoginDialogue";
-import { Metric, MetricType } from "./Metric";
 import { RestrictedDialogue } from "../uv-dialogues-module/RestrictedDialogue";
 import { Shell } from "./Shell";
 import {
@@ -27,7 +26,7 @@ import {
   IExternalResource,
   IExternalResourceData,
   IExternalResourceOptions,
-  // IExternalImageResourceData,
+  IExternalImageResourceData,
   IManifestoOptions,
   Manifest,
   Range,
@@ -43,13 +42,14 @@ import {
   Urls,
   Strings,
 } from "@edsilv/utils";
-import { isVisible } from "../../../../Utils";
+import { defaultLocale, isVisible } from "../../../../Utils";
 import { IIIFEvents } from "../../IIIFEvents";
 import { Events } from "../../../../Events";
 import { StoreApi } from "zustand/vanilla";
 import { ExtensionState } from "./ExtensionState";
+import { BaseConfig, Metric, MetricType } from "../../BaseConfig";
 
-export class BaseExtension implements IExtension {
+export class BaseExtension<T extends BaseConfig> implements IExtension {
   $authDialogue: JQuery;
   $clickThroughDialogue: JQuery;
   $element: JQuery;
@@ -59,7 +59,7 @@ export class BaseExtension implements IExtension {
   annotations: AnnotationGroup[] = [];
   clickThroughDialogue: ClickThroughDialogue;
   extensionHost: IIIFExtensionHost;
-  data: IUVData;
+  data: IUVData<T>;
   extensions: any;
   helper: Helper;
   isCreated: boolean = false;
@@ -79,7 +79,14 @@ export class BaseExtension implements IExtension {
   tabbing: boolean = false;
   browserDetect: BrowserDetect;
   locales = {};
-  defaultConfig: any;
+  defaultConfig: T = {} as any;
+  localeLoaders: Record<string, () => Promise<any>> = {
+    "en-GB": () => import("../../../../locales/en-GB.json"),
+    "cy-GB": () => import("../../../../locales/cy-GB.json"),
+    "fr-FR": () => import("../../../../locales/fr-FR.json"),
+    "pl-PL": () => import("../../../../locales/pl-PL.json"),
+    "sv-SE": () => import("../../../../locales/sv-SE.json"),
+  };
 
   public create(): void {
     const that = this;
@@ -93,13 +100,6 @@ export class BaseExtension implements IExtension {
     this.$element = $(this.extensionHost.options.target);
     this.$element.data("component", this.extensionHost);
 
-    // todo: check this is ok to remove
-    // this.fire(IIIFEvents.CREATE, {
-    //   data: this.data,
-    //   settings: this.getSettings(),
-    //   preview: this.getSharePreview(),
-    // });
-
     this._parseMetrics();
     this._initLocales();
 
@@ -110,6 +110,9 @@ export class BaseExtension implements IExtension {
     this.$element.addClass("loading");
     if (this.data.locales) {
       this.$element.addClass(this.data.locales[0].name.toLowerCase());
+      this.$element.prop("lang", this.data.locales[0].name.substring(0,2));
+    } else {
+      this.$element.prop("lang", defaultLocale[0].name.substring(0,2));
     }
 
     if (this.isRightPanelEnabled()) {
@@ -163,19 +166,15 @@ export class BaseExtension implements IExtension {
         });
       }
 
-      if (Bools.getBool(this.data.config.options.dropEnabled, true)) {
+      if (Bools.getBool(this.data.config!.options.dropEnabled, true)) {
         this.$element.on("drop", (e) => {
           e.preventDefault();
           const dropUrl: any = (<any>e.originalEvent).dataTransfer.getData(
             "URL"
           );
           const a: HTMLAnchorElement = Urls.getUrlParts(dropUrl);
-          let manifestUri:
-            | string
-            | null = Urls.getQuerystringParameterFromString(
-            "manifest",
-            a.search
-          );
+          let manifestUri: string | null =
+            Urls.getQuerystringParameterFromString("manifest", a.search);
 
           if (!manifestUri) {
             // look for collection param
@@ -188,7 +187,7 @@ export class BaseExtension implements IExtension {
 
           if (manifestUri) {
             this.fire(Events.DROP, manifestUri);
-            const data: IUVData = <IUVData>{};
+            const data: IUVData<T> = <IUVData<T>>{};
             data.iiifManifestId = manifestUri;
             this.reload(data);
           }
@@ -269,9 +268,7 @@ export class BaseExtension implements IExtension {
     });
 
     // this.$element.append('<a href="/" id="top"></a>');
-    this.$element.append(
-      '<iframe id="commsFrame" style="display:none"></iframe>'
-    );
+    this.$element.append('<iframe id="commsFrame"></iframe>');
 
     this.extensionHost.subscribeAll((event, args) => {
       // subscribe to all UV events except those handled below with their own fire() calls
@@ -294,7 +291,7 @@ export class BaseExtension implements IExtension {
     });
 
     this.extensionHost.subscribe(IIIFEvents.LOGIN_FAILED, () => {
-      this.showMessage(this.data.config.content.authorisationFailedMessage);
+      this.showMessage(this.data.config!.content.authorisationFailedMessage);
     });
 
     this.extensionHost.subscribe(IIIFEvents.LOGIN, () => {
@@ -319,6 +316,8 @@ export class BaseExtension implements IExtension {
     );
 
     this.extensionHost.subscribe(IIIFEvents.CLOSE_LEFT_PANEL, () => {
+      if (that.$element.hasClass("loading"))
+        that.$element.removeClass("loading");
       this.resize();
     });
 
@@ -380,7 +379,7 @@ export class BaseExtension implements IExtension {
 
     this.extensionHost.subscribe(IIIFEvents.OPEN, () => {
       const openUri: string = Strings.format(
-        this.data.config.options.openTemplate,
+        this.data.config!.options.openTemplate,
         this.helper.manifestUri
       );
       window.open(openUri);
@@ -426,7 +425,8 @@ export class BaseExtension implements IExtension {
       let terms: string | null = this.helper.getLicense();
 
       if (!terms) {
-        const requiredStatement: ILabelValuePair | null = this.helper.getRequiredStatement();
+        const requiredStatement: ILabelValuePair | null =
+          this.helper.getRequiredStatement();
 
         if (requiredStatement && requiredStatement.value) {
           terms = requiredStatement.value;
@@ -439,8 +439,8 @@ export class BaseExtension implements IExtension {
     });
 
     this.extensionHost.subscribe(Events.TOGGLE_FULLSCREEN, () => {
-      const overrideFullScreen: boolean = this.data.config.options
-        .overrideFullScreen;
+      const overrideFullScreen: boolean =
+        this.data.config!.options.overrideFullScreen;
 
       this.extensionHost.isFullScreen = !this.extensionHost.isFullScreen;
 
@@ -473,20 +473,28 @@ export class BaseExtension implements IExtension {
     }, 1);
   }
 
-  public async loadConfig(locale: string): Promise<any> {
-    let config = this.locales[locale];
+  public async loadConfig(locale: string, extension: string): Promise<any> {
+    return this.translateLocale(this.defaultConfig, locale);
+  }
 
-    if (!config) {
-      throw new Error("Unable to load config");
-    }
-    if (typeof config === "object") {
-      config = JSON.parse(JSON.stringify(config));
-    } else if (typeof config === "function") {
-      config = await config();
-      config = JSON.parse(JSON.stringify(config));
+  private async translateLocale(
+    config: Object,
+    locale: String
+  ): Promise<Object> {
+    let loader =
+      this.localeLoaders[locale as any] || this.localeLoaders["en-GB"];
+    let localeStrings = (await loader()) || {};
+    let conf = JSON.stringify(config);
+
+    for (let str in localeStrings) {
+      let replaceStr = str.replace("$", "");
+      let re = new RegExp(`\\$${replaceStr}\\b`, "g");
+      conf = conf.replace(re, localeStrings[str]);
     }
 
-    return config;
+    conf = JSON.parse(conf);
+
+    return conf;
   }
 
   createModules(): void {
@@ -519,7 +527,7 @@ export class BaseExtension implements IExtension {
 
   private _setDefaultFocus(): void {
     setTimeout(() => {
-      if (this.data.config.options.allowStealFocus) {
+      if (this.data.config!.options.allowStealFocus) {
         $("[tabindex=0]").focus();
       }
     }, 1);
@@ -604,9 +612,8 @@ export class BaseExtension implements IExtension {
   }
 
   private _initLocales(): void {
-    const availableLocales: any[] = this.data.config.localisation.locales.slice(
-      0
-    );
+    const availableLocales: any[] =
+      this.data.config!.localisation.locales.slice(0);
     const configuredLocales: ILocale[] | undefined = this.data.locales;
     const finalLocales: ILocale[] = [];
 
@@ -631,7 +638,7 @@ export class BaseExtension implements IExtension {
       });
 
       const limitLocales: boolean = Bools.getBool(
-        this.data.config.options.limitLocales,
+        this.data.config!.options.limitLocales,
         false
       );
 
@@ -651,7 +658,7 @@ export class BaseExtension implements IExtension {
   }
 
   private _parseMetrics(): void {
-    const metrics: Metric[] = this.data.config.options.metrics;
+    const metrics: Metric[] = this.data.config!.options.metrics;
 
     if (metrics) {
       for (let i = 0; i < metrics.length; i++) {
@@ -694,12 +701,12 @@ export class BaseExtension implements IExtension {
   }
 
   // re-bootstraps the application with new querystring params
-  reload(data?: IUVData): void {
+  reload(data?: IUVData<T>): void {
     this.extensionHost.publish(Events.RELOAD, data);
   }
 
   isSeeAlsoEnabled(): boolean {
-    return this.data.config.options.seeAlsoEnabled !== false;
+    return this.data.config!.options.seeAlsoEnabled !== false;
   }
 
   getShareUrl(): string | null {
@@ -720,6 +727,14 @@ export class BaseExtension implements IExtension {
           related = related[0];
         }
         return related["@id"];
+      }
+
+      // If there's a `homepage` property in the manifest
+      const manifest = this.helper.manifest;
+      const homepage = manifest && manifest.getHomepage();
+      if (homepage) {
+        // Use the `homepage` property in the URL box
+        return homepage;
       }
     }
 
@@ -760,19 +775,19 @@ export class BaseExtension implements IExtension {
   }
 
   getSettings(): ISettings {
-    if (Bools.getBool(this.data.config.options.saveUserSettings, false)) {
+    if (Bools.getBool(this.data.config!.options.saveUserSettings, false)) {
       const settings: any = Storage.get("uv.settings", StorageType.LOCAL);
 
       if (settings) {
-        return $.extend(this.data.config.options, settings.value);
+        return $.extend(this.data.config!.options, settings.value);
       }
     }
 
-    return this.data.config.options;
+    return this.data.config!.options;
   }
 
   updateSettings(settings: ISettings): void {
-    if (Bools.getBool(this.data.config.options.saveUserSettings, false)) {
+    if (Bools.getBool(this.data.config!.options.saveUserSettings, false)) {
       const storedSettings: any = Storage.get("uv.settings", StorageType.LOCAL);
 
       if (storedSettings) {
@@ -783,7 +798,7 @@ export class BaseExtension implements IExtension {
       Storage.set("uv.settings", settings, 315360000, StorageType.LOCAL);
     }
 
-    this.data.config.options = $.extend(this.data.config.options, settings);
+    this.data.config!.options = $.extend(this.data.config!.options, settings);
   }
 
   getLocale(): string {
@@ -800,7 +815,7 @@ export class BaseExtension implements IExtension {
 
     if (!thumbnail || !(typeof thumbnail === "string")) {
       thumbnail = canvas.getCanonicalImageUri(
-        this.data.config.options.bookmarkThumbWidth
+        this.data.config!.options.bookmarkThumbWidth
       );
     }
 
@@ -869,7 +884,7 @@ export class BaseExtension implements IExtension {
 
       if (!canvas.externalResource) {
         r = new ExternalResource(canvas, <IExternalResourceOptions>{
-          authApiVersion: this.data.config.options.authAPIVersion,
+          authApiVersion: this.data.config!.options.authAPIVersion,
         });
       } else {
         r = canvas.externalResource;
@@ -893,8 +908,9 @@ export class BaseExtension implements IExtension {
       }
     });
 
-    const storageStrategy: StorageType = this.data.config.options.tokenStorage;
-    const authAPIVersion: number = this.data.config.options.authAPIVersion;
+    const storageStrategy: StorageType = this.data.config!.options
+      .tokenStorage as StorageType;
+    const authAPIVersion: number = this.data.config!.options.authAPIVersion;
 
     // if using auth api v1
     if (authAPIVersion === 1) {
@@ -936,11 +952,11 @@ export class BaseExtension implements IExtension {
     resource.data.hasServiceDescriptor = resource.hasServiceDescriptor();
 
     // if the data isn't an info.json, give it the necessary viewing properties
-    // if (!resource.hasServiceDescriptor()) {
-    //   resource.data.id = <string>resource.dataUri;
-    //   (<IExternalImageResourceData>resource.data).width = resource.width;
-    //   (<IExternalImageResourceData>resource.data).height = resource.height;
-    // }
+    if (!resource.hasServiceDescriptor()) {
+      resource.data.id = <string>resource.dataUri;
+      (<IExternalImageResourceData>resource.data).width = resource.width;
+      (<IExternalImageResourceData>resource.data).height = resource.height;
+    }
 
     resource.data.index = resource.index;
 
@@ -958,7 +974,7 @@ export class BaseExtension implements IExtension {
       const body: AnnotationBody = <any>{
         id: canvas.id,
         type: canvas.getType(),
-        getFormat: function() {
+        getFormat: function () {
           return "";
         },
       };
@@ -969,7 +985,7 @@ export class BaseExtension implements IExtension {
 
   viewCanvas(canvasIndex: number): void {
     if (this.helper.isCanvasIndexOutOfRange(canvasIndex)) {
-      this.showMessage(this.data.config.content.canvasIndexOutOfRange);
+      this.showMessage(this.data.config!.content.canvasIndexOutOfRange);
       return;
     }
 
@@ -1010,7 +1026,7 @@ export class BaseExtension implements IExtension {
 
   // todo: use redux in manifold to get reset state
   viewManifest(manifest: Manifest): void {
-    const data: IUVData = <IUVData>{};
+    const data: IUVData<T> = <IUVData<T>>{};
     data.iiifManifestId = this.helper.manifestUri;
     data.collectionIndex = <number>this.helper.getCollectionIndex(manifest);
     data.manifestIndex = <number>manifest.index;
@@ -1021,7 +1037,7 @@ export class BaseExtension implements IExtension {
 
   // todo: use redux in manifold to get reset state
   viewCollection(collection: Collection): void {
-    const data: IUVData = <IUVData>{};
+    const data: IUVData<T> = <IUVData<T>>{};
     //data.manifestUri = this.helper.manifestUri;
     data.iiifManifestId = collection.parentCollection
       ? collection.parentCollection.id
@@ -1038,11 +1054,11 @@ export class BaseExtension implements IExtension {
   }
 
   isHeaderPanelEnabled(): boolean {
-    return Bools.getBool(this.data.config.options.headerPanelEnabled, true);
+    return Bools.getBool(this.data.config!.options.headerPanelEnabled, true);
   }
 
   isLeftPanelEnabled(): boolean {
-    if (Bools.getBool(this.data.config.options.leftPanelEnabled, true)) {
+    if (Bools.getBool(this.data.config!.options.leftPanelEnabled, true)) {
       if (this.helper.hasParentCollection()) {
         return true;
       } else if (this.helper.isMultiCanvas()) {
@@ -1061,11 +1077,11 @@ export class BaseExtension implements IExtension {
   }
 
   isRightPanelEnabled(): boolean {
-    return Bools.getBool(this.data.config.options.rightPanelEnabled, true);
+    return Bools.getBool(this.data.config!.options.rightPanelEnabled, true);
   }
 
   isFooterPanelEnabled(): boolean {
-    return Bools.getBool(this.data.config.options.footerPanelEnabled, true);
+    return Bools.getBool(this.data.config!.options.footerPanelEnabled, true);
   }
 
   // isMobile(): boolean {
@@ -1090,7 +1106,10 @@ export class BaseExtension implements IExtension {
   }
 
   useArrowKeysToNavigate(): boolean {
-    return Bools.getBool(this.data.config.options.useArrowKeysToNavigate, true);
+    return Bools.getBool(
+      this.data.config!.options.useArrowKeysToNavigate,
+      true
+    );
   }
 
   bookmark(): void {
@@ -1136,7 +1155,7 @@ export class BaseExtension implements IExtension {
 
   changeLocale(locale: string): void {
     // re-order locales so the passed locale is first
-    const data: IUVData = <IUVData>{};
+    const data: IUVData<T> = <IUVData<T>>{};
 
     if (this.data.locales) {
       data.locales = this.data.locales.slice(0);

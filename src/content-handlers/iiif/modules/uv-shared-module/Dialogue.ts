@@ -2,8 +2,11 @@ const $ = require("jquery");
 import { BaseView } from "./BaseView";
 import { IIIFEvents } from "../../IIIFEvents";
 import { Maths } from "@edsilv/utils";
+import { BaseConfig } from "../../BaseConfig";
 
-export class Dialogue extends BaseView {
+export class Dialogue<
+  T extends BaseConfig["modules"]["dialogue"]
+> extends BaseView<T> {
   allowClose: boolean = true;
   isActive: boolean = false;
   isUnopened: boolean = true;
@@ -25,7 +28,6 @@ export class Dialogue extends BaseView {
 
   create(): void {
     this.setConfig("dialogue");
-
     super.create();
 
     // events.
@@ -66,7 +68,7 @@ export class Dialogue extends BaseView {
     this.$bottom = $('<div class="bottom"></div>');
     this.$element.append(this.$bottom);
 
-    if (this.config.topCloseButtonEnabled) {
+    if (this.options.topCloseButtonEnabled) {
       this.$top.append(this.$closeButton);
     } else {
       this.$buttons.append(this.$closeButton);
@@ -153,17 +155,22 @@ export class Dialogue extends BaseView {
       if ($defaultButton.length) {
         $defaultButton.focus();
       } else {
-        // if there's no default button, focus on the first visible input
-        const $input: JQuery = this.$element.find("input:visible").first();
+        // if there's no default button, focus on the first visible input or select element
+        const $firstVisibleElement: JQuery = this.$element
+          .find("input:visible, select:visible")
+          .first();
 
-        if ($input.length) {
-          $input.focus();
+        if ($firstVisibleElement.length) {
+          $firstVisibleElement.focus();
         } else {
           // if there's no visible first input, focus on the close button
           this.$closeButton.focus();
         }
       }
     }, 1);
+
+    // Add keydown event listener to trap focus within the dialog
+    this.$element.on("keydown", (e: JQuery.Event) => this.handleKeydown(e));
 
     this.extensionHost.publish(IIIFEvents.SHOW_OVERLAY);
 
@@ -183,6 +190,9 @@ export class Dialogue extends BaseView {
     this.$element.hide();
     this.isActive = false;
 
+    // Remove the keydown event listener
+    this.$element.off("keydown");
+
     this.extensionHost.publish(this.closeCommand);
     this.extensionHost.publish(IIIFEvents.HIDE_OVERLAY);
   }
@@ -194,5 +204,33 @@ export class Dialogue extends BaseView {
       top: Math.floor(this.extension.height() / 2 - this.$element.height() / 2),
       left: Math.floor(this.extension.width() / 2 - this.$element.width() / 2),
     });
+  }
+
+  private handleKeydown(event: JQuery.Event): void {
+    if (event.key === "Tab") {
+      const focusableSelectors =
+        'a[href], button, textarea, input[type="text"], input[type="radio"], input[type="checkbox"], select, [tabindex="0"]';
+      const focusableElements = this.$element
+        .find(focusableSelectors)
+        .filter(":visible");
+
+      const firstElement = focusableElements.first()[0];
+      const lastElement = focusableElements.last()[0];
+      const activeElement = document.activeElement;
+
+      if (event.shiftKey) {
+        // Shift + Tab (backwards)
+        if (activeElement === firstElement) {
+          event.preventDefault();
+          lastElement.focus();
+        }
+      } else {
+        // Tab (forwards)
+        if (activeElement === lastElement) {
+          event.preventDefault();
+          firstElement.focus();
+        }
+      }
+    }
   }
 }

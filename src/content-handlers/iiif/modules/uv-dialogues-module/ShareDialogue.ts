@@ -1,10 +1,13 @@
 const $ = require("jquery");
+import { BaseConfig } from "../../BaseConfig";
 import { IIIFEvents } from "../../IIIFEvents";
 import { Dialogue } from "../uv-shared-module/Dialogue";
 import { Bools, Numbers } from "@edsilv/utils";
 import { ILabelValuePair } from "@iiif/manifold";
 
-export class ShareDialogue extends Dialogue {
+export class ShareDialogue<
+  T extends BaseConfig["modules"]["shareDialogue"]
+> extends Dialogue<T> {
   $code: JQuery;
   $customSize: JQuery;
   $customSizeDropDown: JQuery;
@@ -87,12 +90,16 @@ export class ShareDialogue extends Dialogue {
     this.$shareButton = $(
       '<a class="share tab default" tabindex="0">' + this.content.share + "</a>"
     );
-    this.$tabs.append(this.$shareButton);
+    if (Bools.getBool(this.config.options.shareEnabled, true)) {
+      this.$tabs.append(this.$shareButton);
+    }
 
     this.$embedButton = $(
       '<a class="embed tab" tabindex="0">' + this.content.embed + "</a>"
     );
-    this.$tabs.append(this.$embedButton);
+    if (Bools.getBool(this.config.options.embedEnabled, false)) {
+      this.$tabs.append(this.$embedButton);
+    }
 
     this.$tabsContent = $('<div class="tabsContent"></div>');
     this.$content.append(this.$tabsContent);
@@ -190,7 +197,7 @@ export class ShareDialogue extends Dialogue {
     }
 
     this.$termsOfUseButton = $(
-      '<a href="#">' + this.extension.data.config.content.termsOfUse + "</a>"
+      '<a href="#">' + this.extension.data.config!.content.termsOfUse + "</a>"
     );
     this.$footer.append(this.$termsOfUseButton);
 
@@ -202,21 +209,31 @@ export class ShareDialogue extends Dialogue {
       return Numbers.numericalInput(e);
     });
 
-    this.$shareInput.focus(function() {
+    this.$shareInput.focus(function () {
       $(this).select();
     });
 
-    this.$code.focus(function() {
+    this.$code.focus(function () {
       $(this).select();
     });
 
-    this.onAccessibleClick(this.$shareButton, () => {
-      this.openShareView();
-    });
+    this.onAccessibleClick(
+      this.$shareButton,
+      () => {
+        this.openShareView();
+      },
+      true,
+      true
+    );
 
-    this.onAccessibleClick(this.$embedButton, () => {
-      this.openEmbedView();
-    });
+    this.onAccessibleClick(
+      this.$embedButton,
+      () => {
+        this.openEmbedView();
+      },
+      true,
+      true
+    );
 
     this.$customSizeDropDown.change(() => {
       this.update();
@@ -320,7 +337,7 @@ export class ShareDialogue extends Dialogue {
   //     var thumbnail = canvas.getProperty('thumbnail');
 
   //     if (!thumbnail || !_.isString(thumbnail)){
-  //         thumbnail = canvas.getCanonicalImageUri(this.extension.data.config.options.bookmarkThumbWidth);
+  //         thumbnail = canvas.getCanonicalImageUri(this.extension.data.config!.options.bookmarkThumbWidth);
   //     }
 
   //     this.$link.attr('href', thumbnail);
@@ -376,11 +393,12 @@ export class ShareDialogue extends Dialogue {
   }
 
   updateTermsOfUseButton(): void {
-    const requiredStatement: ILabelValuePair | null = this.extension.helper.getRequiredStatement();
+    const requiredStatement: ILabelValuePair | null =
+      this.extension.helper.getRequiredStatement();
 
     if (
       Bools.getBool(
-        this.extension.data.config.options.termsOfUseEnabled,
+        this.extension.data.config!.options.termsOfUseEnabled,
         false
       ) &&
       requiredStatement &&

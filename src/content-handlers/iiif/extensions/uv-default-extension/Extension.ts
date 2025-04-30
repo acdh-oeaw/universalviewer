@@ -11,30 +11,26 @@ import { SettingsDialogue } from "./SettingsDialogue";
 import { ShareDialogue } from "./ShareDialogue";
 import { Bools, Strings } from "@edsilv/utils";
 import "./theme/theme.less";
-import defaultConfig from "./config/en-GB.json";
+import defaultConfig from "./config/config.json";
+import { Config } from "./config/Config";
 
-export default class Extension extends BaseExtension
-  implements IDefaultExtension {
+export default class Extension
+  extends BaseExtension<Config>
+  implements IDefaultExtension
+{
   $downloadDialogue: JQuery;
   $shareDialogue: JQuery;
   $helpDialogue: JQuery;
   $settingsDialogue: JQuery;
   centerPanel: FileLinkCenterPanel;
   shareDialogue: ShareDialogue;
-  footerPanel: FooterPanel;
-  headerPanel: HeaderPanel;
+  footerPanel: FooterPanel<Config["modules"]["footerPanel"]>;
+  headerPanel: HeaderPanel<Config["modules"]["headerPanel"]>;
   helpDialogue: HelpDialogue;
   leftPanel: ResourcesLeftPanel;
   rightPanel: MoreInfoRightPanel;
   settingsDialogue: SettingsDialogue;
-  defaultConfig: any = defaultConfig;
-  locales = {
-    "en-GB": defaultConfig,
-    "cy-GB": () => import("./config/cy-GB.json"),
-    "fr-FR": () => import("./config/fr-FR.json"),
-    "pl-PL": () => import("./config/pl-PL.json"),
-    "sv-SE": () => import("./config/sv-SE.json"),
-  };
+  defaultConfig: Config = defaultConfig;
 
   create(): void {
     super.create();
@@ -112,7 +108,7 @@ export default class Extension extends BaseExtension
 
   isLeftPanelEnabled(): boolean {
     return (
-      Bools.getBool(this.data.config.options.leftPanelEnabled, true) &&
+      Bools.getBool(this.data.config!.options.leftPanelEnabled, true) &&
       (this.helper.isMultiCanvas() ||
         this.helper.isMultiSequence() ||
         this.helper.hasResources())
@@ -121,12 +117,14 @@ export default class Extension extends BaseExtension
 
   getEmbedScript(template: string, width: number, height: number): string {
     const appUri: string = this.getAppUri();
+    const title: string = this.helper.getLabel() || "";
     const iframeSrc: string = `${appUri}#?manifest=${this.helper.manifestUri}&c=${this.helper.collectionIndex}&m=${this.helper.manifestIndex}&cv=${this.helper.canvasIndex}`;
     const script: string = Strings.format(
       template,
       iframeSrc,
       width.toString(),
-      height.toString()
+      height.toString(),
+      title
     );
     return script;
   }

@@ -2,8 +2,8 @@ const $ = require("jquery");
 import { createElement } from "react";
 import { createRoot, Root } from "react-dom/client";
 import ThumbsView from "./ThumbsView";
-const ViewingDirectionEnum = require("@iiif/vocabulary/dist-commonjs/")
-  .ViewingDirection;
+const ViewingDirectionEnum =
+  require("@iiif/vocabulary/dist-commonjs/").ViewingDirection;
 // const ViewingHintEnum = require("@iiif/vocabulary/dist-commonjs/").ViewingHint;
 import { Bools } from "@edsilv/utils";
 import { ViewingHint, ViewingDirection } from "@iiif/vocabulary/dist-commonjs/";
@@ -22,8 +22,9 @@ import {
 } from "manifesto.js";
 import { AnnotationGroup, TreeSortType } from "@iiif/manifold";
 import { isVisible } from "../../../../Utils";
+import { ContentLeftPanel as ContentLeftPanelConfig } from "../../extensions/config/ContentLeftPanel";
 
-export class ContentLeftPanel extends LeftPanel {
+export class ContentLeftPanel extends LeftPanel<ContentLeftPanelConfig> {
   $bottomOptions: JQuery;
   $galleryView: JQuery;
   $leftOptions: JQuery;
@@ -43,10 +44,12 @@ export class ContentLeftPanel extends LeftPanel {
   $treeViewOptions: JQuery;
   $treeSelect: JQuery;
   $views: JQuery;
+  $keyElement: JQuery;
   expandFullEnabled: boolean = false;
   galleryView: GalleryView;
   isThumbsViewOpen: boolean = false;
   isTreeViewOpen: boolean = false;
+  keyPress: boolean = false;
   treeData: TreeNode;
   treeSortType: TreeSortType = TreeSortType.NONE;
   treeView: TreeView;
@@ -101,7 +104,7 @@ export class ContentLeftPanel extends LeftPanel {
         this.collapseFull();
       }
 
-      this.selectCurrentTreeNode();
+      this.selectCurrentTreeNodeByCanvas();
       this.updateTreeTabBySelection();
     });
 
@@ -110,7 +113,7 @@ export class ContentLeftPanel extends LeftPanel {
         this.collapseFull();
       }
 
-      this.selectCurrentTreeNode();
+      this.selectCurrentTreeNodeByRange();
       this.updateTreeTabBySelection();
     });
 
@@ -208,13 +211,23 @@ export class ContentLeftPanel extends LeftPanel {
 
     this.$treeViewOptions.hide();
 
-    this.onAccessibleClick(this.$treeButton, () => {
+    this.onAccessibleClick(
+      this.$treeButton,
+      () => {
       this.openTreeView();
-    });
+      },
+      true,
+      true
+    );
 
-    this.onAccessibleClick(this.$thumbsButton, () => {
+    this.onAccessibleClick(
+      this.$thumbsButton,
+      () => {
       this.openThumbsView();
-    });
+      },
+      true,
+      true
+    );
 
     this.setTitle(this.content.title);
 
@@ -282,11 +295,7 @@ export class ContentLeftPanel extends LeftPanel {
     if (!treeData) {
       return;
     }
-
-    if (
-      this.isCollection() &&
-      this.extension.helper.treeHasNavDates(treeData)
-    ) {
+    if (!this.defaultToThumbsView()) {
       this.$treeViewOptions.show();
     } else {
       this.$treeViewOptions.hide();
@@ -363,9 +372,8 @@ export class ContentLeftPanel extends LeftPanel {
 
     if (autoExpandTreeEnabled) {
       // get total number of tree nodes
-      const flatTree:
-        | TreeNode[]
-        | null = this.extension.helper.getFlattenedTree();
+      const flatTree: TreeNode[] | null =
+        this.extension.helper.getFlattenedTree();
 
       if (flatTree && flatTree.length < autoExpandTreeIfFewerThan) {
         return true;
@@ -439,7 +447,8 @@ export class ContentLeftPanel extends LeftPanel {
     // let height: number;
 
     // const viewingHint: ViewingHint | null = this.getViewingHint();
-    const viewingDirection: ViewingDirection | null = this.getViewingDirection();
+    const viewingDirection: ViewingDirection | null =
+      this.getViewingDirection();
 
     // if (
     //   viewingDirection &&
@@ -456,10 +465,8 @@ export class ContentLeftPanel extends LeftPanel {
     //   height = this.config.options.oneColThumbHeight;
     // }
 
-    const thumbs: Thumb[] = <Thumb[]>(
-      this.extension.helper.getThumbs(210)
+    const thumbs: Thumb[] = <Thumb[]>this.extension.helper.getThumbs(90);
       // this.extension.helper.getThumbs(width, height)
-    );
 
     if (
       viewingDirection &&
@@ -491,13 +498,15 @@ export class ContentLeftPanel extends LeftPanel {
       }
     }
 
-    const paged: boolean = (!!this.extension.getSettings().pagingEnabled && this.extension.helper.isPaged());
+    const paged: boolean =
+      !!this.extension.getSettings().pagingEnabled &&
+      this.extension.helper.isPaged();
 
     const selectedIndices: number[] = this.extension.getPagedIndices(
       this.extension.helper.canvasIndex
     );
 
-    // console.log("selectedIndeces", selectedIndices);
+    const settings = this.extension.getSettings();
 
     this.thumbsRoot.render(
       createElement(ThumbsView, {
@@ -505,13 +514,16 @@ export class ContentLeftPanel extends LeftPanel {
         paged,
         viewingDirection: viewingDirection || ViewingDirection.LEFT_TO_RIGHT,
         selected: selectedIndices,
+        truncateThumbnailLabels: settings.truncateThumbnailLabels !== undefined ? settings.truncateThumbnailLabels : true,
         onClick: (thumb: Thumb) => {
+          this.extensionHost.publish(IIIFEvents.THUMB_SELECTED, thumb);
+        },
+        onKeyDown: (thumb: Thumb) => {
           this.extensionHost.publish(IIIFEvents.THUMB_SELECTED, thumb);
         },
       })
     );
   }
-
   createGalleryView(): void {
     this.galleryView = new GalleryView(this.$galleryView);
     this.galleryView.galleryData = this.getGalleryData();
@@ -528,8 +540,8 @@ export class ContentLeftPanel extends LeftPanel {
   getGalleryData() {
     return {
       helper: this.extension.helper,
-      chunkedResizingThreshold: this.config.options
-        .galleryThumbChunkedResizingThreshold,
+      chunkedResizingThreshold:
+        this.config.options.galleryThumbChunkedResizingThreshold,
       content: this.config.content,
       debug: false,
       imageFadeInDuration: 300,
@@ -615,8 +627,20 @@ export class ContentLeftPanel extends LeftPanel {
     );
     const defaultToTreeIfGreaterThan: number =
       this.config.options.defaultToTreeIfGreaterThan || 0;
+    const defaultToTreeIfCollection: boolean = Bools.getBool(
+      this.config.options.defaultToTreeIfCollection,
+      false
+    );
 
     const treeData: TreeNode | null = this.getTree();
+
+    if (
+      this.isCollection() &&
+      (defaultToTreeIfCollection ||
+        (treeData && this.extension.helper.treeHasNavDates(treeData)))
+    ) {
+      return false;
+    }
 
     if (defaultToTreeEnabled) {
       if (treeData && treeData.nodes.length > defaultToTreeIfGreaterThan) {
@@ -753,24 +777,22 @@ export class ContentLeftPanel extends LeftPanel {
   selectCurrentTreeNodeByRange(): void {
     if (this.treeView) {
       const range: Range | null = this.extension.helper.getCurrentRange();
-      let node: TreeNode | null = null;
-
       if (range && range.treeNode) {
-        node = this.treeView.getNodeById(range.treeNode.id);
-      }
-
+        const node = this.treeView.getNodeById(range.treeNode.id);
       if (node) {
-        this.treeView.selectNode(<TreeNode>node);
+          this.treeView.selectNode(node);
       } else {
         this.selectTreeNodeByManifest();
       }
     }
   }
+  }
 
   selectCurrentTreeNodeByCanvas(): void {
     if (this.treeView) {
       let node: TreeNode | null = null;
-      const currentCanvasTopRangeIndex: number = this.getCurrentCanvasTopRangeIndex();
+      const currentCanvasTopRangeIndex: number =
+        this.getCurrentCanvasTopRangeIndex();
       const selectedTopRangeIndex: number = this.getSelectedTopRangeIndex();
       const usingCorrectTree: boolean =
         currentCanvasTopRangeIndex === selectedTopRangeIndex;
@@ -792,7 +814,7 @@ export class ContentLeftPanel extends LeftPanel {
       // }
 
       if (node && usingCorrectTree) {
-        this.treeView.selectNode(<TreeNode>node);
+        this.treeView.selectNode(node);
       } else {
         range = this.extension.helper.getCurrentRange();
 
@@ -801,7 +823,7 @@ export class ContentLeftPanel extends LeftPanel {
         }
 
         if (node) {
-          this.treeView.selectNode(<TreeNode>node);
+          this.treeView.selectNode(node);
         } else {
           this.selectTreeNodeByManifest();
         }

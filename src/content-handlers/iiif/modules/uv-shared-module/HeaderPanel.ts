@@ -8,8 +8,11 @@ import { InformationArgs } from "./InformationArgs";
 import { InformationFactory } from "./InformationFactory";
 import { Bools } from "@edsilv/utils";
 import { isVisible } from "../../../../Utils";
+import { BaseConfig } from "../../BaseConfig";
 
-export class HeaderPanel extends BaseView {
+export class HeaderPanel<
+  T extends BaseConfig["modules"]["headerPanel"]
+> extends BaseView<T> {
   $centerOptions: JQuery;
   $helpButton: JQuery;
   $informationBox: JQuery;
@@ -66,7 +69,7 @@ export class HeaderPanel extends BaseView {
       '<div class="informationBox" aria-hidden="true"> \
                                     <div class="message"></div> \
                                     <div class="actions"></div> \
-                                    <button type="button" class="close" aria-label="Close"> \
+                                    <button type="button" class="close"> \
                                         <span aria-hidden="true">&#215;</span>\
                                     </button> \
                                   </div>'
@@ -75,8 +78,10 @@ export class HeaderPanel extends BaseView {
     this.$element.append(this.$informationBox);
 
     this.$informationBox.hide();
-    this.$informationBox.find(".close").attr("title", this.content.close);
-    this.$informationBox.find(".close").on("click", (e) => {
+    var $closeButton = this.$informationBox.find(".close");
+    $closeButton.attr("aria-label", this.content.close);
+    $closeButton.attr("title", this.content.close);
+    $closeButton.on("click", (e) => {
       e.preventDefault();
       this.extensionHost.publish(IIIFEvents.HIDE_INFORMATION);
     });
@@ -149,10 +154,7 @@ export class HeaderPanel extends BaseView {
     if (!this.information) return;
 
     var $message = this.$informationBox.find(".message");
-    $message
-      .html(this.information.message)
-      .find("a")
-      .attr("target", "_top");
+    $message.html(this.information.message).find("a").attr("target", "_top");
     var $actions = this.$informationBox.find(".actions");
     $actions.empty();
 
@@ -165,7 +167,7 @@ export class HeaderPanel extends BaseView {
       $actions.append($action);
     }
 
-    this.extensionHost.publish(IIIFEvents.MESSAGE_DISPLAYED, this.information)
+    this.extensionHost.publish(IIIFEvents.MESSAGE_DISPLAYED, this.information);
 
     this.$informationBox.attr("aria-hidden", "false");
     this.$informationBox.show();
@@ -217,10 +219,7 @@ export class HeaderPanel extends BaseView {
     }
 
     // hide toggle buttons below minimum width
-    if (
-      this.extension.width() <
-      this.extension.data.config.options.minWidthBreakPoint
-    ) {
+    if (this.extension.isMobileMetric()) {
       if (this.localeToggleIsVisible()) this.$localeToggleButton.hide();
     } else {
       if (this.localeToggleIsVisible()) this.$localeToggleButton.show();

@@ -6,10 +6,13 @@ import { Bools } from "@edsilv/utils";
 import { AnnotationBody, Canvas, IExternalResource } from "manifesto.js";
 import { Events } from "../../../../Events";
 import { loadScripts } from "../../../../Utils";
+import { Config } from "../../extensions/uv-pdf-extension/config/Config";
 
 // declare var PDFJS: any;
 
-export class PDFCenterPanel extends CenterPanel {
+export class PDFCenterPanel extends CenterPanel<
+  Config["modules"]["pdfCenterPanel"]
+> {
   // private _$spinner: JQuery;
   private _$canvas: JQuery;
   private _$nextButton: JQuery;
@@ -49,15 +52,29 @@ export class PDFCenterPanel extends CenterPanel {
     this._$progress = $('<progress max="100" value="0"></progress>');
     this._canvas = <HTMLCanvasElement>this._$canvas[0];
     this._ctx = this._canvas.getContext("2d");
-    this._$prevButton = $('<div class="btn prev" tabindex="0"></div>');
-    this._$nextButton = $('<div class="btn next" tabindex="0"></div>');
-    this._$zoomInButton = $('<div class="btn zoomIn" tabindex="0"></div>');
-    this._$zoomOutButton = $('<div class="btn zoomOut" tabindex="0"></div>');
+    this._$prevButton = $(
+      `<button class="btn btn-default paging prev" title="${this.content.previous}">
+        <i class="uv-icon-prev" aria-hidden="true"></i>
+        <span class="sr-only">${this.content.previous}</span>
+      </button>`
+    );
+    this._$nextButton = $(
+      `<button class="btn btn-default paging next" title="${this.content.next}">
+        <i class="uv-icon-next" aria-hidden="true"></i>
+        <span class="sr-only">${this.content.next}</span>
+      </button>`
+    );
+    this._$zoomInButton = $(
+      '<button class="btn zoomIn" tabindex="0"></button>'
+    );
+    this._$zoomOutButton = $(
+      '<button class="btn zoomOut" tabindex="0"></button>'
+    );
 
     // Only attach PDF controls if we're using PDF.js; they have no meaning in
     // PDFObject. However, we still create the objects above so that references
     // to them do not cause errors (simpler than putting usePdfJs checks all over):
-    if (Bools.getBool(this.extension.data.config.options.usePdfJs, false)) {
+    if (Bools.getBool(this.options.usePdfJs, false)) {
       // this.$content.append(this._$spinner);
       this.$content.append(this._$progress);
       this.$content.append(this._$prevButton);
@@ -172,9 +189,7 @@ export class PDFCenterPanel extends CenterPanel {
 
     this.disableNextButton();
 
-    this._$zoomInButton.onPressed((e: any) => {
-      e.preventDefault();
-
+    this.onAccessibleClick(this._$zoomInButton, () => {
       const newScale: number = this._scale + 0.5;
 
       if (newScale < this._maxScale) {
@@ -186,9 +201,7 @@ export class PDFCenterPanel extends CenterPanel {
       this._render(this._pageIndex);
     });
 
-    this._$zoomOutButton.onPressed((e: any) => {
-      e.preventDefault();
-
+    this.onAccessibleClick(this._$zoomOutButton, () => {
       const newScale: number = this._scale - 0.5;
 
       if (newScale > this._minScale) {
@@ -248,9 +261,8 @@ export class PDFCenterPanel extends CenterPanel {
 
     let mediaUri: string | null = null;
     let canvas: Canvas = this.extension.helper.getCurrentCanvas();
-    const formats: AnnotationBody[] | null = this.extension.getMediaFormats(
-      canvas
-    );
+    const formats: AnnotationBody[] | null =
+      this.extension.getMediaFormats(canvas);
     const pdfUri: string = canvas.id;
 
     if (formats && formats.length) {
@@ -265,7 +277,7 @@ export class PDFCenterPanel extends CenterPanel {
 
     this._lastMediaUri = mediaUri;
 
-    if (!Bools.getBool(this.extension.data.config.options.usePdfJs, false)) {
+    if (!Bools.getBool(this.options.usePdfJs, false)) {
       window.PDFObject = await import(
         /* webpackChunkName: "pdfobject" */ /* webpackMode: "lazy" */ "pdfobject"
       );
@@ -279,10 +291,12 @@ export class PDFCenterPanel extends CenterPanel {
 
       // use pdfjs cdn, it just isn't working with webpack
       if (!this._pdfjsLib) {
-        await loadScripts(["//mozilla.github.io/pdf.js/build/pdf.js"]);
+        await loadScripts([
+          "//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+        ]);
         this._pdfjsLib = window["pdfjs-dist/build/pdf"];
         this._pdfjsLib.GlobalWorkerOptions.workerSrc =
-          "//mozilla.github.io/pdf.js/build/pdf.worker.js";
+          "//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
       } else {
         this._$progress[0].setAttribute("value", "0");
         this._$progress.show();
@@ -315,7 +329,7 @@ export class PDFCenterPanel extends CenterPanel {
   }
 
   private _render(num: number): void {
-    if (!Bools.getBool(this.extension.data.config.options.usePdfJs, false)) {
+    if (!Bools.getBool(this.options.usePdfJs, false)) {
       return;
     }
 

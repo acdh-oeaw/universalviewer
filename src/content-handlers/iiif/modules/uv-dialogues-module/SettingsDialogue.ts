@@ -1,9 +1,10 @@
 const $ = require("jquery");
+import { BaseConfig } from "../../BaseConfig";
 import { IIIFEvents } from "../../IIIFEvents";
 import { Dialogue } from "../uv-shared-module/Dialogue";
 import { ILocale } from "../uv-shared-module/ILocale";
 
-export class SettingsDialogue extends Dialogue {
+export class SettingsDialogue extends Dialogue<BaseConfig["modules"]["settingsDialogue"]> {
   $locale: JQuery;
   $localeDropDown: JQuery;
   $localeLabel: JQuery;
@@ -134,6 +135,14 @@ export class SettingsDialogue extends Dialogue {
     );
 
     this.$reducedAnimation.append(this.$reducedAnimationLabel);
+
+    const settings: ISettings = this.getSettings();
+
+    if (settings.reducedAnimation) {
+      this.$reducedAnimationCheckbox.prop("checked", true);
+    } else {
+      this.$reducedAnimationCheckbox.removeAttr("checked");
+    }
 
     this.$reducedAnimationCheckbox.change(() => {
       const settings: ISettings = {};

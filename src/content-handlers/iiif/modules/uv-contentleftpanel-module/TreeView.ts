@@ -3,12 +3,14 @@ import { IIIFEvents } from "../../IIIFEvents";
 import { BaseView } from "../uv-shared-module/BaseView";
 import { TreeNode } from "manifesto.js";
 import { TreeComponent } from "@iiif/iiif-tree-component";
+import { ContentLeftPanel } from "./ContentLeftPanel";
 
-export class TreeView extends BaseView {
+export class TreeView extends BaseView<ContentLeftPanel> {
   isOpen: boolean = false;
   treeComponent: any;
   treeData: any;
   $tree: JQuery;
+  private expandedNodeIds: Set<string> = new Set();
 
   constructor($element: JQuery) {
     super($element, true, true);
@@ -17,14 +19,11 @@ export class TreeView extends BaseView {
   create(): void {
     this.setConfig("contentLeftPanel");
     super.create();
-
     this.$tree = $('<div class="iiif-tree-component"></div>');
     this.$element.append(this.$tree);
   }
 
   setup(): void {
-    const that = this;
-
     this.treeComponent = new TreeComponent({
       target: <HTMLElement>this.$tree[0],
       data: this.treeData,
@@ -32,23 +31,44 @@ export class TreeView extends BaseView {
 
     this.treeComponent.on(
       "treeNodeSelected",
-      function(node: TreeNode) {
-        that.extensionHost.publish(IIIFEvents.TREE_NODE_SELECTED, node);
+      (node: TreeNode) => {
+        this.extensionHost.publish(IIIFEvents.TREE_NODE_SELECTED, node);
       },
       false
     );
 
     this.treeComponent.on(
       "treeNodeMultiSelected",
-      function(node: TreeNode) {
-        that.extensionHost.publish(IIIFEvents.TREE_NODE_MULTISELECTED, node);
+      (node: TreeNode) => {
+        this.extensionHost.publish(IIIFEvents.TREE_NODE_MULTISELECTED, node);
       },
       false
     );
   }
 
+  private saveState(): void {
+    const allNodes = this.treeComponent.getAllNodes();
+    this.expandedNodeIds.clear();
+    allNodes.forEach((node) => {
+      if (node.expanded) {
+        this.expandedNodeIds.add(node.id);
+      }
+    });
+  }
+
+  private restoreState(): void {
+    const allNodes = this.treeComponent.getAllNodes();
+    allNodes.forEach((node) => {
+      if (this.expandedNodeIds.has(node.id)) {
+        this.treeComponent.expandNode(node, true);
+      }
+    });
+  }
+
   public databind(): void {
+    this.saveState();
     this.treeComponent.set(this.treeData);
+    this.restoreState();
     this.resize();
   }
 
@@ -63,19 +83,18 @@ export class TreeView extends BaseView {
   }
 
   public selectNode(node: TreeNode): void {
-    if (!this.treeComponent.selectedNode) {
-      this.treeComponent.expandParents(node, true);
-
-      const link: Element | undefined = this.$tree.find(
-        "#tree-link-" + node.id
-      )[0];
-
-      if (link) {
-        // link.scrollIntoView({ inline: 'center' });
-      }
+    this.treeComponent.expandParents(node, true); // Expand node parents
+    const link: Element | undefined = this.$tree.find(
+      "#tree-link-" + node.id
+    )[0];
+    if (link) {
+      //commented out as bug where scrolls to wrong node eg in Villanova collection
+      // link.scrollIntoViewIfNeeded();
     }
 
-    this.treeComponent.selectNode(node);
+    Promise.resolve().then(() => {
+      this.treeComponent.selectNode(node);
+    });
   }
 
   public expandNode(node: TreeNode, expanded: boolean): void {

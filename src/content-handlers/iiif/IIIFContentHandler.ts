@@ -36,64 +36,64 @@ const Extension: IExtensionRegistry = {
     name: "uv-av-extension",
     loader: () =>
       /* webpackMode: "lazy" */ import(
-      "./extensions/uv-av-extension/Extension"
-    ),
+        "./extensions/uv-av-extension/Extension"
+      ),
   },
   ALEPH: {
     name: "uv-aleph-extension",
     loader: () =>
       /* webpackMode: "lazy" */ import(
-      "./extensions/uv-aleph-extension/Extension"
-    ),
+        "./extensions/uv-aleph-extension/Extension"
+      ),
   },
   DEFAULT: {
     name: "uv-default-extension",
     loader: () =>
       /* webpackMode: "lazy" */ import(
-      "./extensions/uv-default-extension/Extension"
-    ),
+        "./extensions/uv-default-extension/Extension"
+      ),
   },
   EBOOK: {
     name: "uv-ebook-extension",
     loader: () =>
       /* webpackMode: "lazy" */ import(
-      "./extensions/uv-ebook-extension/Extension"
-    ),
+        "./extensions/uv-ebook-extension/Extension"
+      ),
   },
   MEDIAELEMENT: {
     name: "uv-mediaelement-extension",
     loader: () =>
       /* webpackMode: "lazy" */ import(
-      "./extensions/uv-mediaelement-extension/Extension"
-    ),
+        "./extensions/uv-mediaelement-extension/Extension"
+      ),
   },
   MODELVIEWER: {
     name: "uv-model-viewer-extension",
     loader: () =>
       /* webpackMode: "lazy" */ import(
-      "./extensions/uv-model-viewer-extension/Extension"
-    ),
+        "./extensions/uv-model-viewer-extension/Extension"
+      ),
   },
   OSD: {
     name: "uv-openseadragon-extension",
     loader: () =>
       /* webpackMode: "lazy" */ import(
-      "./extensions/uv-openseadragon-extension/Extension"
-    ),
+        "./extensions/uv-openseadragon-extension/Extension"
+      ),
   },
   PDF: {
     name: "uv-pdf-extension",
     loader: () =>
       /* webpackMode: "lazy" */ import(
-      "./extensions/uv-pdf-extension/Extension"
-    ),
+        "./extensions/uv-pdf-extension/Extension"
+      ),
   },
   SLIDEATLAS: {
     name: "uv-openseadragon-extension",
     loader: () =>
       /* webpackMode: "lazy" */ import(
-      "./extensions/uv-openseadragon-extension/Extension"
-    ),
+        "./extensions/uv-openseadragon-extension/Extension"
+      ),
   },
 };
 
@@ -101,7 +101,7 @@ export default class IIIFContentHandler extends BaseContentHandler<IIIFData>
   implements IIIFExtensionHost, IContentHandler<IIIFData> {
   private _extensionRegistry: IExtensionRegistry;
   private _pubsub: PubSub;
-  public extension: IExtension | null;
+  public extension: IExtension | undefined;
   public isFullScreen: boolean = false;
   public disposed = false;
   private extra = { initial: false };
@@ -177,10 +177,6 @@ export default class IIIFContentHandler extends BaseContentHandler<IIIFData>
     type: ExtensionLoader,
     format?: string
   ): Promise<any> {
-    // previously: /* webpackChunkName: "uv-av-extension" */ /* webpackMode: "lazy" */ "./extensions/uv-av-extension/Extension"
-    // const m = (await import(
-    //   /* webpackMode: "lazy" */ `./extensions/${name}/Extension`
-    // )) as any;
     const m = await type.loader();
     const extension: IExtension = new m.default();
     extension.format = format;
@@ -196,7 +192,7 @@ export default class IIIFContentHandler extends BaseContentHandler<IIIFData>
     return this._getExtensionByType(this._extensionRegistry[format], format);
   }
 
-  public set(data: IUVData, initial?: boolean): void {
+  public set(data: IUVData<any>, initial?: boolean): void {
     if (initial) {
       this.extra.initial = true;
     }
@@ -210,7 +206,11 @@ export default class IIIFContentHandler extends BaseContentHandler<IIIFData>
       this._reload(data);
     } else {
       // changing any of these data properties forces the UV to reload.
-      const newData: IUVData = Object.assign({}, this.extension.data, data);
+      const newData: IUVData<any> = Object.assign(
+        {},
+        this.extension.data,
+        data
+      );
       if (
         newData.isReload ||
         newData.iiifManifestId !== this.extension.data.iiifManifestId ||
@@ -258,23 +258,32 @@ export default class IIIFContentHandler extends BaseContentHandler<IIIFData>
   }
 
   public dispose() {
-    // console.log("dispose IIIFContentHandler");
     super.dispose();
     this._pubsub.dispose();
     this.extension?.dispose();
     this.disposed = true;
-    // const $elem: JQuery = $(this.options.target);
-    // $elem.empty();
-    // remove all classes
-    // $elem.attr("class", "");
   }
 
-  private async _reload(data: IUVData): Promise<void> {
+  private async _loadAndApplyConfigToExtension(that: IIIFContentHandler, data: IUVData<any>, extension: any): Promise<void> {
+    // import the config file
+    if (!data.locales) {
+      data.locales = [];
+      data.locales.push(defaultLocale);
+    }
+    let config = await (extension).loadConfig(
+      data.locales[0].name,
+      extension?.type.name
+    );
+
+    data.config = await that.configure(config);
+  }
+
+  private async _reload(data: IUVData<any>): Promise<void> {
     this._pubsub.dispose(); // remove any existing event listeners
 
     data.target = ""; // clear target
 
-    this.subscribe(Events.RELOAD, (data?: IUVData) => {
+    this.subscribe(Events.RELOAD, (data?: IUVData<any>) => {
       this.fire(Events.RELOAD, data);
     });
 
@@ -363,30 +372,29 @@ export default class IIIFContentHandler extends BaseContentHandler<IIIFData>
         }
       }
 
-      // if using uv-av-extension and there is no structure, fall back to uv-mediaelement-extension
+      await this._loadAndApplyConfigToExtension(that, data, extension);
+
+      // if using uv-av-extension and there is no structure,
+      // or the preferMediaElementExtension config is set
+      // fall back to uv-mediaelement-extension
       const hasRanges: boolean = helper.getRanges().length > 0;
 
-      if (extension!.type === Extension.AV && !hasRanges) {
+      if (
+        extension!.type === Extension.AV &&
+        (!hasRanges || data.config.options.preferMediaElementExtension)
+      ) {
         extension = await that._getExtensionByType(
           Extension.MEDIAELEMENT,
           format
         );
+        await this._loadAndApplyConfigToExtension(that, data, extension);
       }
 
       // if there still isn't a matching extension, use the default extension.
       if (!extension) {
         extension = await that._getExtensionByFormat(Extension.DEFAULT.name);
+        await this._loadAndApplyConfigToExtension(that, data, extension);
       }
-
-      if (!data.locales) {
-        data.locales = [];
-        data.locales.push(defaultLocale);
-      }
-
-      // import the config file
-      let config = await (extension as any).loadConfig(data.locales[0].name);
-
-      data.config = await that.configure(config);
 
       that._createExtension(extension, data, helper);
     } catch (e) {
@@ -401,7 +409,7 @@ export default class IIIFContentHandler extends BaseContentHandler<IIIFData>
 
   private _createExtension(
     extension: any,
-    data: IUVData,
+    data: IUVData<any>,
     helper: Helper
   ): void {
     this.extension = extension;

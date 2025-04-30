@@ -16,6 +16,7 @@ export class IIIFEvents {
   static COLLECTION_INDEX_CHANGE: string = "collectionIndexChange";
   static CREATE: string = "create";
   static CURRENT_TIME_CHANGE: string = "currentTimeChanged";
+  static RANGE_TIME_CHANGE: string = "rangeTimeChanged";
   static DOWN_ARROW: string = "downArrow";
   static DOWNLOAD: string = "download";
   static END: string = "end";
@@ -86,6 +87,7 @@ export class IIIFEvents {
   // static SET: string = "set";
   static SET_ROTATION: string = "setRotation";
   static SET_TARGET: string = "setTarget";
+  static SET_MUTED: string = "setMuted";
   static SETTINGS_CHANGE: string = "settingsChange";
   static SHOW_AUTH_DIALOGUE: string = "showAuthDialogue";
   static SHOW_CLICKTHROUGH_DIALOGUE: string = "showClickThroughDialogue";
@@ -116,4 +118,6 @@ export class IIIFEvents {
   static UPDATE_SETTINGS: string = "updateSettings";
   static VIEW_FULL_TERMS: string = "viewFullTerms";
   static WINDOW_UNLOAD: string = "windowUnload";
+  static SHOW_ADJUSTIMAGE_DIALOGUE: string = "showAdjustImageDialogue";
+  static HIDE_ADJUSTIMAGE_DIALOGUE: string = "hideAdjustImageDialogue";
 }
