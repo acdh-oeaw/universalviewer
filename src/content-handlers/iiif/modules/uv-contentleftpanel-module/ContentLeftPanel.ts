@@ -443,30 +443,31 @@ export class ContentLeftPanel extends LeftPanel<ContentLeftPanelConfig> {
   renderThumbs(): void {
     if (!this.thumbsRoot) return;
 
-    // let width: number;
-    // let height: number;
+    let width: number;
+    let height: number;
 
-    // const viewingHint: ViewingHint | null = this.getViewingHint();
+    const viewingHint: ViewingHint | null = this.getViewingHint();
     const viewingDirection: ViewingDirection | null =
       this.getViewingDirection();
 
-    // if (
-    //   viewingDirection &&
-    //   (viewingDirection === ViewingDirectionEnum.LEFT_TO_RIGHT ||
-    //     viewingDirection === ViewingDirectionEnum.RIGHT_TO_LEFT)
-    // ) {
-    //   width = this.config.options.twoColThumbWidth;
-    //   height = this.config.options.twoColThumbHeight;
-    // } else if (viewingHint && viewingHint === ViewingHintEnum.PAGED) {
-    //   width = this.config.options.twoColThumbWidth;
-    //   height = this.config.options.twoColThumbHeight;
-    // } else {
-    //   width = this.config.options.oneColThumbWidth;
-    //   height = this.config.options.oneColThumbHeight;
-    // }
+    if (
+      viewingDirection &&
+      (viewingDirection === ViewingDirectionEnum.LEFT_TO_RIGHT ||
+        viewingDirection === ViewingDirectionEnum.RIGHT_TO_LEFT)
+    ) {
+      width = this.config.options.twoColThumbWidth;
+      height = this.config.options.twoColThumbHeight;
+    } else if (viewingHint && viewingHint === ViewingHint.PAGED) {
+      width = this.config.options.twoColThumbWidth;
+      height = this.config.options.twoColThumbHeight;
+    } else {
+      width = this.config.options.oneColThumbWidth;
+      height = this.config.options.oneColThumbHeight;
+    }
 
-    const thumbs: Thumb[] = <Thumb[]>this.extension.helper.getThumbs(90);
-      // this.extension.helper.getThumbs(width, height)
+    const thumbs: Thumb[] = 
+      // <Thumb[]>this.extension.helper.getThumbs(90);
+      <Thumb[]>this.extension.helper.getThumbs(width, height)
 
     if (
       viewingDirection &&
